@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ระบบตรวจนับเวชภัณฑ์ & สารน้ำ · SICU1</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#eef3f6; --card:#ffffff; --ink:#12303a; --muted:#5f7581; --line:#e2ebef;
+  --teal:#0f8a8d; --teal-d:#0b6e70; --teal-l:#e6f5f5;
+  --ok:#1f9d63; --ok-l:#e5f5ec;
+  --warn:#e0a100; --warn-l:#fbf3d9;
+  --low:#e56717; --low-l:#fdeadf;
+  --out:#d7383b; --out-l:#fbe4e4;
+  --shadow:0 2px 10px rgba(18,48,58,.06),0 1px 3px rgba(18,48,58,.05);
+  --radius:16px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Sarabun','Noto Sans Thai',Tahoma,sans-serif;background:var(--bg);color:var(--ink);line-height:1.45;-webkit-text-size-adjust:100%}
+.wrap{max-width:1200px;margin:0 auto;padding:16px 16px 80px}
+/* header */
+header{background:linear-gradient(135deg,var(--teal),var(--teal-d));color:#fff;border-radius:var(--radius);padding:18px 20px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+header::after{content:"";position:absolute;right:-40px;top:-40px;width:180px;height:180px;background:rgba(255,255,255,.07);border-radius:50%}
+.h-top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;position:relative;z-index:1}
+h1{font-size:20px;font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:9px}
+.h-sub{font-size:12.5px;opacity:.9;margin-top:2px}
+.datebox{background:rgba(255,255,255,.16);border-radius:12px;padding:8px 14px;text-align:center;backdrop-filter:blur(4px)}
+.datebox .d{font-size:16px;font-weight:700}
+.datebox .l{font-size:11px;opacity:.9}
+/* summary */
+.sum{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0}
+.scard{background:var(--card);border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);border-left:5px solid var(--teal);cursor:pointer;transition:.15s;user-select:none}
+.scard:hover{transform:translateY(-2px)}
+.scard.active{outline:2.5px solid var(--teal);outline-offset:-1px}
+.scard .n{font-size:26px;font-weight:700;line-height:1}
+.scard .t{font-size:12.5px;color:var(--muted);margin-top:3px;display:flex;align-items:center;gap:5px}
+.scard.s-out{border-color:var(--out)} .scard.s-out .n{color:var(--out)}
+.scard.s-low{border-color:var(--low)} .scard.s-low .n{color:var(--low)}
+.scard.s-ok{border-color:var(--ok)} .scard.s-ok .n{color:var(--ok)}
+.scard.s-all{border-color:var(--teal)} .scard.s-all .n{color:var(--teal-d)}
+/* alert banner */
+.alertbar{background:var(--out-l);border:1.5px solid #f3b6b6;border-radius:14px;padding:12px 16px;margin-bottom:14px;display:none}
+.alertbar.show{display:block}
+.alertbar h3{font-size:14px;color:var(--out);display:flex;align-items:center;gap:7px;margin-bottom:6px}
+.alertbar .chips{display:flex;flex-wrap:wrap;gap:6px}
+.achip{background:#fff;border:1px solid #f0c4c4;color:#a52a2c;border-radius:999px;padding:3px 10px;font-size:12px;font-weight:500}
+.achip b{color:var(--out)}
+/* tabs */
+.tabs{display:flex;gap:6px;margin-bottom:14px;background:var(--card);padding:6px;border-radius:14px;box-shadow:var(--shadow);flex-wrap:wrap}
+.tab{flex:1;min-width:120px;text-align:center;padding:10px 8px;border-radius:10px;font-size:14px;font-weight:600;color:var(--muted);cursor:pointer;transition:.15s;border:none;background:none}
+.tab.active{background:var(--teal);color:#fff;box-shadow:0 2px 6px rgba(15,138,141,.35)}
+/* toolbar */
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.search{flex:1;min-width:180px;position:relative}
+.search input{width:100%;padding:11px 14px 11px 40px;border:1.5px solid var(--line);border-radius:12px;font-size:14px;font-family:inherit;background:#fff}
+.search input:focus{outline:none;border-color:var(--teal)}
+.search svg{position:absolute;left:13px;top:12px;color:var(--muted)}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.fchip{padding:8px 13px;border-radius:999px;font-size:13px;font-weight:500;border:1.5px solid var(--line);background:#fff;color:var(--muted);cursor:pointer;transition:.15s;white-space:nowrap}
+.fchip.active{background:var(--teal-l);border-color:var(--teal);color:var(--teal-d)}
+.fchip .c{opacity:.7;font-size:11px}
+.btn{padding:10px 15px;border-radius:12px;font-size:13.5px;font-weight:600;border:none;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;gap:6px;transition:.15s}
+.btn-primary{background:var(--teal);color:#fff}.btn-primary:hover{background:var(--teal-d)}
+.btn-ghost{background:#fff;color:var(--teal-d);border:1.5px solid var(--line)}.btn-ghost:hover{border-color:var(--teal)}
+.btn-warn{background:var(--low);color:#fff}
+.toggle{display:inline-flex;align-items:center;gap:7px;font-size:13px;color:var(--muted);cursor:pointer;user-select:none;background:#fff;border:1.5px solid var(--line);padding:8px 12px;border-radius:12px}
+.toggle input{display:none}
+.toggle .sw{width:36px;height:20px;background:#cdd8dd;border-radius:999px;position:relative;transition:.2s}
+.toggle .sw::after{content:"";position:absolute;width:16px;height:16px;background:#fff;border-radius:50%;top:2px;left:2px;transition:.2s}
+.toggle input:checked+.sw{background:var(--low)}
+.toggle input:checked+.sw::after{left:18px}
+/* category section */
+.catsec{margin-bottom:18px}
+.cathead{display:flex;align-items:center;gap:9px;font-size:15px;font-weight:700;color:var(--teal-d);padding:6px 4px;margin-bottom:6px}
+.cathead .ico{width:30px;height:30px;border-radius:9px;background:var(--teal-l);display:flex;align-items:center;justify-content:center;font-size:17px}
+.cathead .cnt{font-size:12px;font-weight:500;color:var(--muted);background:#fff;border:1px solid var(--line);border-radius:999px;padding:1px 9px}
+/* item card */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px}
+.item{background:var(--card);border-radius:14px;padding:12px 13px;box-shadow:var(--shadow);border-left:5px solid var(--ok);display:flex;flex-direction:column;gap:9px;transition:.15s}
+.item.st-out{border-color:var(--out);background:linear-gradient(90deg,var(--out-l),#fff 60%)}
+.item.st-low{border-color:var(--low);background:linear-gradient(90deg,var(--low-l),#fff 65%)}
+.item.st-warn{border-color:var(--warn)}
+.item.st-ok{border-color:var(--ok)}
+.it-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.it-name{font-size:13.5px;font-weight:600;line-height:1.35}
+.it-code{font-size:10.5px;color:var(--muted);margin-top:2px;font-family:monospace}
+.badge{font-size:11px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.badge.b-out{background:var(--out-l);color:var(--out)}
+.badge.b-low{background:var(--low-l);color:var(--low)}
+.badge.b-warn{background:var(--warn-l);color:#9a7000}
+.badge.b-ok{background:var(--ok-l);color:var(--ok)}
+.it-mid{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.bal{display:flex;align-items:baseline;gap:5px}
+.bal .num{font-size:30px;font-weight:700;line-height:1;min-width:44px;text-align:center;border:none;background:none;font-family:inherit;color:var(--ink);width:60px}
+.bal .num:focus{outline:2px solid var(--teal);border-radius:6px}
+.bal .unit{font-size:12.5px;color:var(--muted)}
+.stepper{display:flex;gap:6px}
+.step{width:40px;height:40px;border-radius:11px;border:none;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.12s}
+.step.minus{background:var(--out-l);color:var(--out)}.step.minus:active{background:var(--out);color:#fff}
+.step.plus{background:var(--ok-l);color:var(--ok)}.step.plus:active{background:var(--ok);color:#fff}
+.it-foot{display:flex;justify-content:space-between;align-items:center;font-size:11.5px;color:var(--muted);border-top:1px dashed var(--line);padding-top:7px}
+.it-foot .thr{display:flex;gap:12px}
+.it-foot b{color:var(--ink)}
+.mini{background:none;border:none;color:var(--teal-d);font-size:11.5px;cursor:pointer;font-family:inherit;text-decoration:underline;padding:0}
+/* fluids */
+.fluid-shift{display:flex;gap:6px;margin-bottom:14px;background:#fff;padding:6px;border-radius:12px;box-shadow:var(--shadow);max-width:360px}
+.fluid-shift .sh{flex:1;text-align:center;padding:9px;border-radius:9px;font-weight:600;font-size:13.5px;color:var(--muted);cursor:pointer;border:none;background:none}
+.fluid-shift .sh.active{color:#fff}
+.fluid-shift .sh.active[data-shift="เช้า"]{background:#e0a100}
+.fluid-shift .sh.active[data-shift="บ่าย"]{background:#0f8a8d}
+.fluid-shift .sh.active[data-shift="ดึก"]{background:#4b4b8f}
+.fgroup{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:12px 14px;margin-bottom:12px}
+.fgroup h4{font-size:15px;color:var(--teal-d);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.fgroup h4 .gt{margin-left:auto;font-size:12px;font-weight:600;color:var(--muted);background:var(--teal-l);padding:2px 10px;border-radius:999px}
+.fsizes{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:9px}
+.fsize{border:1.5px solid var(--line);border-radius:12px;padding:9px;text-align:center}
+.fsize.has{border-color:var(--teal);background:var(--teal-l)}
+.fsize .lbl{font-size:12.5px;color:var(--muted);font-weight:600;margin-bottom:6px}
+.fsize .row{display:flex;align-items:center;justify-content:center;gap:8px}
+.fsize .cnt{font-size:22px;font-weight:700;min-width:30px}
+.fstep{width:32px;height:32px;border-radius:9px;border:none;font-size:17px;font-weight:700;cursor:pointer}
+.fstep.m{background:var(--out-l);color:var(--out)} .fstep.p{background:var(--ok-l);color:var(--ok)}
+.fluid-total{background:linear-gradient(135deg,var(--teal),var(--teal-d));color:#fff;border-radius:14px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;box-shadow:var(--shadow)}
+.fluid-total .n{font-size:30px;font-weight:700}
+/* history */
+.hcard{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:14px 16px;margin-bottom:10px}
+.hcard .hd{display:flex;justify-content:space-between;font-weight:600;color:var(--teal-d);margin-bottom:6px}
+.hstat{display:flex;gap:16px;font-size:13px;color:var(--muted);flex-wrap:wrap}
+.hstat b{color:var(--ink)}
+/* modal */
+.modal{position:fixed;inset:0;background:rgba(18,48,58,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+.modal.show{display:flex}
+.mbox{background:#fff;border-radius:18px;padding:22px;max-width:440px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.3);max-height:90vh;overflow:auto}
+.mbox h3{font-size:17px;margin-bottom:14px;color:var(--teal-d)}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:4px;font-weight:600}
+.field input,.field select{width:100%;padding:10px 12px;border:1.5px solid var(--line);border-radius:10px;font-size:14px;font-family:inherit}
+.field input:focus,.field select:focus{outline:none;border-color:var(--teal)}
+.frow{display:flex;gap:10px}.frow .field{flex:1}
+.mact{display:flex;gap:10px;justify-content:flex-end;margin-top:8px}
+.fab{position:fixed;right:20px;bottom:20px;width:58px;height:58px;border-radius:50%;background:var(--teal);color:#fff;border:none;font-size:30px;box-shadow:0 6px 20px rgba(15,138,141,.5);cursor:pointer;z-index:20;display:flex;align-items:center;justify-content:center}
+.empty{text-align:center;color:var(--muted);padding:40px;font-size:14px}
+.footer-note{text-align:center;font-size:11.5px;color:var(--muted);margin-top:20px;line-height:1.7}
+/* login */
+.login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#0f8a8d,#0b6e70);display:flex;align-items:center;justify-content:center;z-index:100;padding:16px}
+.login-box{background:#fff;border-radius:22px;padding:30px 26px;max-width:380px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.35);text-align:center}
+.login-box .logo{font-size:44px;margin-bottom:6px}
+.login-box h2{font-size:19px;color:var(--teal-d);margin-bottom:2px}
+.login-box .sub{font-size:12.5px;color:var(--muted);margin-bottom:20px}
+.login-box .field{text-align:left}
+.login-box input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:12px;font-size:16px;font-family:inherit;letter-spacing:1px}
+.login-box input:focus{outline:none;border-color:var(--teal)}
+.login-box .field label{font-size:12.5px}
+.login-err{color:var(--out);font-size:12.5px;min-height:18px;margin:2px 0 8px;font-weight:600}
+.login-box .btn{width:100%;justify-content:center;font-size:15px;padding:13px}
+.login-hint{font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6}
+.userbadge{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.18);border-radius:12px;padding:7px 12px;position:relative;z-index:1}
+.userbadge .av{width:30px;height:30px;border-radius:50%;background:#fff;color:var(--teal-d);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.userbadge .who{font-size:12px;line-height:1.2}
+.userbadge .who b{font-size:13.5px;display:block}
+.userbadge .lo{background:rgba(255,255,255,.25);border:none;color:#fff;border-radius:8px;padding:5px 9px;font-size:11.5px;cursor:pointer;font-family:inherit;font-weight:600}
+.it-by{font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-top:2px}
+.audit-row{background:var(--card);border-radius:12px;box-shadow:var(--shadow);padding:10px 14px;margin-bottom:7px;display:flex;gap:12px;align-items:center;font-size:13px;border-left:4px solid var(--teal)}
+.audit-row .a-ico{font-size:18px}
+.audit-row .a-uid{font-weight:700;color:var(--teal-d);font-family:monospace}
+.audit-row .a-det{flex:1;color:var(--ink)}
+.audit-row .a-time{font-size:11.5px;color:var(--muted);white-space:nowrap}
+.audit-row.act-del{border-color:var(--out)}
+.audit-row.act-add{border-color:var(--ok)}
+.audit-row.act-close{border-color:var(--low)}
+.hide{display:none!important}
+@media(max-width:640px){.sum{grid-template-columns:repeat(2,1fr)}.grid{grid-template-columns:1fr}h1{font-size:17px}}
+@media print{.tabs,.toolbar,.fab,.stepper,.step,.scard,.alertbar .chips,.btn,.toggle{display:none!important}body{background:#fff}.item{break-inside:avoid}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN SCREEN -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <div class="logo">🏥</div>
+    <h2>ระบบตรวจนับเวชภัณฑ์ SICU1</h2>
+    <div class="sub">กรุณาเข้าสู่ระบบเพื่อบันทึกและระบุผู้กรอกข้อมูล</div>
+    <div class="field">
+      <label>รหัสพนักงาน (ตัวเลข 6 หลัก)</label>
+      <input id="lgUser" inputmode="numeric" maxlength="6" placeholder="เช่น 123456" autocomplete="off">
+    </div>
+    <div style="height:10px"></div>
+    <div class="field">
+      <label>รหัสผ่าน (4 ตัว)</label>
+      <input id="lgPass" type="password" maxlength="4" placeholder="••••" autocomplete="off">
+    </div>
+    <div class="login-err" id="lgErr"></div>
+    <button class="btn btn-primary" onclick="doLogin()">เข้าสู่ระบบ →</button>
+    <div class="login-hint" id="lgHint">ผู้ใช้ใหม่: ระบบจะจดจำรหัสผ่านจากการเข้าครั้งแรกโดยอัตโนมัติ<br>ครั้งต่อไปต้องใช้รหัสผ่านเดิม</div>
+  </div>
+</div>
+
+<div class="wrap">
+  <header>
+    <div class="h-top">
+      <div>
+        <h1>🏥 ระบบตรวจนับเวชภัณฑ์ &amp; สารน้ำ</h1>
+        <div class="h-sub">หออภิบาลผู้ป่วยศัลยกรรม 1 (SICU1) · โรงพยาบาลศรีนครินทร์ · แตะ = จุดสั่งเติม, เติม = จำนวนที่เบิกเพิ่ม</div>
+      </div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <div class="userbadge">
+          <div class="av" id="uAv">–</div>
+          <div class="who">ผู้บันทึก<b id="uName">–</b></div>
+          <button class="lo" onclick="doLogout()">ออก</button>
+        </div>
+        <div class="datebox">
+          <div class="d" id="hDate">–</div>
+          <div class="l" id="hDay">วันทำการ</div>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div class="sum" id="summary"></div>
+
+  <div class="alertbar" id="alertbar">
+    <h3>⚠️ รายการที่ควรเติมด่วน (คงเหลือถึง/ต่ำกว่าจุดแตะ)</h3>
+    <div class="chips" id="alertchips"></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab active" data-view="stock">📦 เวชภัณฑ์คงคลัง</button>
+    <button class="tab" data-view="fluid">💧 สารน้ำรายวัน</button>
+    <button class="tab" data-view="history">📊 ประวัติ / สรุป</button>
+    <button class="tab" data-view="audit">🧾 บันทึกผู้ใช้งาน</button>
+  </div>
+
+  <!-- STOCK VIEW -->
+  <div id="view-stock">
+    <div class="toolbar">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="searchBox" placeholder="ค้นหาชื่อรายการ / รหัส...">
+      </div>
+      <label class="toggle"><input type="checkbox" id="onlyLow"><span class="sw"></span> เฉพาะที่ต้องเติม</label>
+      <button class="btn btn-ghost" onclick="openAdd()">➕ เพิ่มรายการ</button>
+      <button class="btn btn-ghost" onclick="backup()">💾 สำรองข้อมูล</button>
+      <button class="btn btn-ghost" onclick="doPrint()">🖨️ พิมพ์</button>
+      <button class="btn btn-warn" onclick="carryOver()">🌙 ปิดยอด → ขึ้นวันใหม่</button>
+    </div>
+    <div class="filters" id="catFilters"></div>
+    <div id="stockList" style="margin-top:14px"></div>
+  </div>
+
+  <!-- FLUID VIEW -->
+  <div id="view-fluid" class="hide">
+    <div class="fluid-shift" id="shiftBar">
+      <button class="sh active" data-shift="เช้า">☀️ เวรเช้า</button>
+      <button class="sh" data-shift="บ่าย">🌤️ เวรบ่าย</button>
+      <button class="sh" data-shift="ดึก">🌙 เวรดึก</button>
+    </div>
+    <div class="fluid-total">
+      <div>💧 รวมสารน้ำที่ใช้วันนี้ (ทุกเวร)</div>
+      <div class="n"><span id="fluidTotal">0</span> <span style="font-size:15px">ขวด/ถุง</span></div>
+    </div>
+    <div id="fluidList"></div>
+    <div style="text-align:center;margin-top:8px">
+      <button class="btn btn-ghost" onclick="resetFluidToday()">♻️ ล้างยอดสารน้ำวันนี้</button>
+    </div>
+  </div>
+
+  <!-- HISTORY VIEW -->
+  <div id="view-history" class="hide">
+    <div id="historyList"></div>
+  </div>
+
+  <!-- AUDIT VIEW -->
+  <div id="view-audit" class="hide">
+    <div class="toolbar">
+      <div class="search">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="auditSearch" placeholder="ค้นหาตามรหัสพนักงาน / รายการ...">
+      </div>
+      <button class="btn btn-ghost" onclick="exportAudit()">📤 ส่งออก Log (CSV)</button>
+    </div>
+    <div id="auditList"></div>
+  </div>
+
+  <div class="footer-note">
+    ข้อมูลถูกบันทึกอัตโนมัติในเครื่องนี้ (ไม่ต้องต่อเน็ต) · แนะนำกด “สำรองข้อมูล” เก็บไฟล์ไว้ทุกสัปดาห์<br>
+    เกณฑ์สี: <b style="color:var(--out)">■ หมด</b> &nbsp; <b style="color:var(--low)">■ ต้องเติม (≤ แตะ)</b> &nbsp; <b style="color:var(--warn)">■ เฝ้าระวัง</b> &nbsp; <b style="color:var(--ok)">■ ปกติ</b>
+  </div>
+</div>
+
+<button class="fab" onclick="openAdd()" title="เพิ่มรายการ">+</button>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal" id="modal">
+  <div class="mbox">
+    <h3 id="mTitle">เพิ่มรายการใหม่</h3>
+    <div class="field"><label>ชื่อรายการ</label><input id="mName" placeholder="เช่น Foley catheter two ways ch.16"></div>
+    <div class="frow">
+      <div class="field"><label>หมวดหมู่</label><select id="mCat"></select></div>
+      <div class="field"><label>หน่วยนับ</label><input id="mUnit" placeholder="EA / SET / BOX ..."></div>
+    </div>
+    <div class="frow">
+      <div class="field"><label>คงเหลือปัจจุบัน</label><input id="mBal" type="number" value="0"></div>
+      <div class="field"><label>แตะ (จุดสั่งเติม)</label><input id="mMin" type="number" value="0"></div>
+      <div class="field"><label>เติม (จำนวนเบิก)</label><input id="mRef" type="number" value="0"></div>
+    </div>
+    <div class="field"><label>รหัสสินค้า (ไม่บังคับ)</label><input id="mCode" placeholder="ItemCode"></div>
+    <div class="mact">
+      <button class="btn btn-ghost" id="mDelete" onclick="deleteItem()" style="margin-right:auto;color:var(--out)">🗑️ ลบ</button>
+      <button class="btn btn-ghost" onclick="closeModal()">ยกเลิก</button>
+      <button class="btn btn-primary" onclick="saveItem()">บันทึก</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SEED = [{"code": "42311708DRA04550", "name": "Adhesive incise drape size 45x47.5cm.or 45x50cm.or 50x50cm.", "bal": 8, "unit": "EA", "min": 5, "refill": 5, "cat": "suture", "id": "I000"}, {"code": "42291613BLA00011", "name": "Blade surgical No.11 (100EA/BOX)", "bal": 83, "unit": "EA", "min": 10, "refill": 100, "cat": "suture", "id": "I001"}, {"code": "42292904SLN03020", "name": "Braid silk No.3-0 ยาวไม่น้อยกว่า 75 cm.เข็ม 1/2 R/B size 20-22 mm.", "bal": 20, "unit": "EA", "min": 5, "refill": 10, "cat": "suture", "id": "I002"}, {"code": "42142702FCA30020", "name": "Foley catheter three ways ch.20 ballon 30 ml.", "bal": 10, "unit": "EA", "min": 1, "refill": 3, "cat": "catheter", "id": "I003"}, {"code": "42142702FCA30022", "name": "Foley catheter three ways ch.22 ballon 30 ml.", "bal": 8, "unit": "EA", "min": 1, "refill": 3, "cat": "catheter", "id": "I004"}, {"code": "42142702FCA20014", "name": "Foley catheter two ways ch.14 ballon 30 ml.", "bal": 17, "unit": "EA", "min": 5, "refill": 5, "cat": "catheter", "id": "I005"}, {"code": "42142702FCA20016", "name": "Foley catheter two ways ch.16 ballon 30 ml.", "bal": 16, "unit": "EA", "min": 5, "refill": 5, "cat": "catheter", "id": "I006"}, {"code": "42142702FCA20018", "name": "Foley catheter two ways ch.18 ballon 30 ml.", "bal": 11, "unit": "EA", "min": 5, "refill": 5, "cat": "catheter", "id": "I007"}, {"code": "42311601GEL00010", "name": "Gelatin sponge absorbable sterile size 70x50x10 mm.", "bal": 9, "unit": "EA", "min": 5, "refill": 5, "cat": "suture", "id": "I008"}, {"code": "42221609INF00000", "name": "Infusion plabottle set (IV.set)", "bal": 68, "unit": "SET", "min": 30, "refill": 30, "cat": "iv", "id": "I009"}, {"code": "42221504IVC00016", "name": "Intravenous Disposable Catheter ch.16 ความยาวประมาณ 2.0\"-2.1/2\"", "bal": 106, "unit": "EA", "min": 10, "refill": 20, "cat": "needle", "id": "I010"}, {"code": "42221504IVC00018N", "name": "Intravenous Disposable Catheter ch.18 ความยาวประมาณ 1.1/4\"-1.3/4\"", "bal": 0, "unit": "EA", "min": 10, "refill": 20, "cat": "needle", "id": "I011"}, {"code": "42131606MAS00001", "name": "Mask ใช้แล้วทิ้งแบบคล้องหู", "bal": 500, "unit": "EA", "min": 200, "refill": 300, "cat": "gloves", "id": "I012"}, {"code": "42142517MVE00000", "name": "Minimun Volume Extension with T connector", "bal": 39, "unit": "EA", "min": 30, "refill": 50, "cat": "iv", "id": "I013"}, {"code": "42142521NED00023", "name": "Needle disposable size 23Gx1\"", "bal": 6, "unit": "BOX", "min": 2, "refill": 3, "cat": "needle", "id": "I014"}, {"code": "42142521NED00021", "name": "Needle dispossable size 21Gx1.5\"", "bal": 18, "unit": "BOX", "min": 2, "refill": 2, "cat": "needle", "id": "I015"}, {"code": "42221612NFC00001", "name": "Needle Free Connector", "bal": 0, "unit": "EA", "min": 25, "refill": 50, "cat": "needle", "id": "I016"}, {"code": "42142514NDS02235", "name": "Needle spinal disposable size 22Gx3.5\"", "bal": 10, "unit": "EA", "min": 3, "refill": 3, "cat": "needle", "id": "I017"}, {"code": "42231701SNG12125", "name": "Stomach tube NG.disposable length 12 Fr.125 cm.", "bal": 18, "unit": "EA", "min": 5, "refill": 5, "cat": "catheter", "id": "I018"}, {"code": "42231701SNG14125", "name": "Stomach tube NG.disposable length 14 Fr.125 cm.", "bal": 22, "unit": "EA", "min": 10, "refill": 10, "cat": "catheter", "id": "I019"}, {"code": "42231701SNG18125", "name": "Stomach tube NG.disposable length 18 Fr.125 cm.", "bal": 8, "unit": "EA", "min": 3, "refill": 3, "cat": "catheter", "id": "I020"}, {"code": "42142402SCC00010", "name": "Suction with control catheter ch.10", "bal": 600, "unit": "EA", "min": 300, "refill": 300, "cat": "catheter", "id": "I021"}, {"code": "42142402SCC00012", "name": "Suction with control catheter ch.12", "bal": 233, "unit": "EA", "min": 300, "refill": 300, "cat": "catheter", "id": "I022"}, {"code": "42292904SAB02025", "name": "Synthetic absorbable No.2-0 ยาวไม่น้อยกว่า 65 cm. เข็ม 1/2 R/B size 25-26 mm.", "bal": 10, "unit": "EA", "min": 2, "refill": 2, "cat": "suture", "id": "I023"}, {"code": "42292904SAB03025", "name": "Synthetic absorbable No.3-0 ยาวไม่น้อยกว่า 65 cm.  เข็ม 1/2 R/B size 25-26 mm.", "bal": 18, "unit": "EA", "min": 2, "refill": 2, "cat": "suture", "id": "I024"}, {"code": "42292904SNM03024", "name": "Synthetic Nonabsorbable monofilament No 3-0 ยาวไม่น้อย กว่า 65 cm.เข็ม 3/8 cuv. cutting size 24-26 m", "bal": 28, "unit": "EA", "min": 5, "refill": 10, "cat": "suture", "id": "I025"}, {"code": "42292904SNM06016", "name": "Synthetic Nonabsorbable Monofilament No.6-0 ยาวไม่ ไม่น้อยกว่า 45 cm.เข็ม 3/8 cuv. cutting size 15-1", "bal": 14, "unit": "EA", "min": 2, "refill": 2, "cat": "suture", "id": "I026"}, {"code": "42292904SNM06016", "name": "Synthetic Nonabsorbable Monofilament No.6-0 ยาวไม่ ไม่น้อยกว่า 45 cm.เข็ม 3/8 cuv. cutting size 15-16 mm.", "bal": 5, "unit": "EA", "min": 2, "refill": 2, "cat": "suture", "id": "I027"}, {"code": "42142608SYR00003", "name": "Syringe disposable 2.5-3 cc.", "bal": 600, "unit": "EA", "min": 200, "refill": 200, "cat": "needle", "id": "I028"}, {"code": "42142608SYR00005", "name": "Syringe disposable 5 cc.", "bal": 0, "unit": "EA", "min": 200, "refill": 200, "cat": "needle", "id": "I029"}, {"code": "42142608SYR00050", "name": "Syringe disposable 50 cc.", "bal": 200, "unit": "EA", "min": 50, "refill": 50, "cat": "needle", "id": "I030"}, {"code": "42142608SGI00050", "name": "Syringe glass Irrigate 50 cc.", "bal": 20, "unit": "EA", "min": 10, "refill": 10, "cat": "needle", "id": "I031"}, {"code": "42142611SIN00100", "name": "Syringe Insuline disposable 100 unit. (1cc.ชนิดไม่ถอดหัวเข็ม)", "bal": 200, "unit": "EA", "min": 50, "refill": 50, "cat": "needle", "id": "I032"}, {"code": "C043", "name": "Syringe Irr 50 cc.", "bal": 0, "unit": "EA", "min": 20, "refill": 20, "cat": "needle", "id": "I033"}, {"code": "42142611STB00001", "name": "Syringe Tuberculine disposable 1 cc.พร้อมเข็ม", "bal": 0, "unit": "EA", "min": 200, "refill": 200, "cat": "needle", "id": "I034"}, {"code": "42221612TWD00000", "name": "Three ways disposable stopcock", "bal": 55, "unit": "EA", "min": 50, "refill": 50, "cat": "iv", "id": "I035"}, {"code": "42311527DRE01012", "name": "Transparent dressing ขนาด 10cm.x 12cm.", "bal": 0, "unit": "แผ่น", "min": 50, "refill": 50, "cat": "dressing", "id": "I036"}, {"code": "42311702UMB00000", "name": "Umbilical cord tap", "bal": 4, "unit": "ROLL", "min": 1, "refill": 1, "cat": "suture", "id": "I037"}, {"code": "42181705EKA40000", "name": "กระดาษพิมพ์ผล ตรวจคลื่นไฟฟ้าหัวใจ ขนาด A4", "bal": 3, "unit": "พับ", "min": 1, "refill": 1, "cat": "other", "id": "I038"}, {"code": "41140112BOX00002", "name": "กระป๋องพลาสติก Polypropylene(PP) พร้อมฝาปิด เบอร์ 2 กระป๋องและฝาสีขาวขุ่นสำหรับบรรจุ Urine", "bal": 100, "unit": "ใบ", "min": 10, "refill": 20, "cat": "other", "id": "I039"}, {"code": "41140112BOX00003", "name": "กล่องพลาสติกใสพร้อมฝาปิด เบอร์ 3", "bal": 100, "unit": "ใบ", "min": 50, "refill": 50, "cat": "other", "id": "I040"}, {"code": "30111504MOR00003", "name": "โกร่งบดยา  dia  9  cm.", "bal": 7, "unit": "EA", "min": 4, "refill": 4, "cat": "other", "id": "I041"}, {"code": "42295453RED00500", "name": "ขวดราดิแวคขนาด 500 ซีซี.", "bal": 5, "unit": "ใบ", "min": 3, "refill": 3, "cat": "other", "id": "I042"}, {"code": "42142500STR00000", "name": "เข็มเจาะเลือดปลายนิ้วแบบมีด้ามจับ (30 ชิ้น / กล่อง)", "bal": 0, "unit": "BOX", "min": 6, "refill": 6, "cat": "needle", "id": "I043"}, {"code": "42231808FED00001", "name": "ชุดถุงให้อาหารทางสายยางKANGAROO SET", "bal": 2, "unit": "SET", "min": 4, "refill": 4, "cat": "other", "id": "I044"}, {"code": "41104102PEN00001", "name": "ชุดปากกาเจาะเลือดปลายนิ้ว", "bal": 0, "unit": "EA", "min": 2, "refill": 2, "cat": "needle", "id": "I045"}, {"code": "42222001IFP00000", "name": "ชุดให้สารละลายทางหลอดเลือดดำสำหรับเครื่อง Infusion pump", "bal": 100, "unit": "SET", "min": 40, "refill": 40, "cat": "iv", "id": "I046"}, {"code": "999999990003", "name": "ตลับพลาสติกขนาด 15 กรัม", "bal": 0, "unit": "EA", "min": 10, "refill": 10, "cat": "other", "id": "I047"}, {"code": "42132203GLD0000S", "name": "ถุงมือใช้แล้วทิ้ง ชนิดทำจากยางพารา เบอร์ S (50คู่/BOX)", "bal": 80, "unit": "BOX", "min": 25, "refill": 20, "cat": "gloves", "id": "I048"}, {"code": "42132203NITL0002", "name": "ถุงมือไนไตรล์แบบสั้น ชนิดใช้แล้วทิ้ง ขนาด L", "bal": 2, "unit": "BOX", "min": 0, "refill": 1, "cat": "gloves", "id": "I049"}, {"code": "42132203NITM0001", "name": "ถุงมือไนไตรล์แบบสั้น ชนิดใช้แล้วทิ้ง ขนาด M", "bal": 1, "unit": "BOX", "min": 0, "refill": 1, "cat": "gloves", "id": "I050"}, {"code": "42132203NITS0000", "name": "ถุงมือไนไตรล์แบบสั้น ชนิดใช้แล้วทิ้ง ขนาด S", "bal": 1, "unit": "BOX", "min": 0, "refill": 1, "cat": "gloves", "id": "I051"}, {"code": "42132205GPF70000", "name": "ถุงมือสำหรับตรวจโรคผลิตจากยางพารา ชนิดปราศจากเชื้อแบบไม่มีแป้ง เบอร์ M(7-8)", "bal": 10, "unit": "EA", "min": 5, "refill": 10, "cat": "gloves", "id": "I052"}, {"code": "42132205GPF65000", "name": "ถุงมือสำหรับตรวจโรคผลิตจากยางพารา ชนิดปราศจากเชื้อแบบไม่มีแป้ง เบอร์ S(6-7)", "bal": 0, "unit": "EA", "min": 5, "refill": 10, "cat": "gloves", "id": "I053"}, {"code": "42271903ETC00006", "name": "ท่อช่วยหายใจEndotracheal tube No.6 มี Cuff", "bal": 13, "unit": "EA", "min": 2, "refill": 2, "cat": "catheter", "id": "I054"}, {"code": "42271903ETC00065", "name": "ท่อช่วยหายใจEndotracheal tube No.6.5 มี cuff", "bal": 12, "unit": "EA", "min": 2, "refill": 2, "cat": "catheter", "id": "I055"}, {"code": "42271903ETC00007", "name": "ท่อช่วยหายใจEndotracheal tube No.7 มี cuff", "bal": 9, "unit": "EA", "min": 3, "refill": 3, "cat": "catheter", "id": "I056"}, {"code": "42271903ETC00075", "name": "ท่อช่วยหายใจEndotracheal tube No.7.5 มี cuff", "bal": 8, "unit": "EA", "min": 3, "refill": 3, "cat": "catheter", "id": "I057"}, {"code": "42271903ETC00008", "name": "ท่อช่วยหายใจEndotracheal tube No.8 มี cuff", "bal": 8, "unit": "EA", "min": 2, "refill": 2, "cat": "catheter", "id": "I058"}, {"code": "42272008ETS00065", "name": "ท่อช่วยหายใจชนิดมี cuff แบบบางสำหรับดูดเสมหะและสิ่งคัดหลั่ง ขนาด 6.5 mm.", "bal": 0, "unit": "EA", "min": 1, "refill": 1, "cat": "catheter", "id": "I059"}, {"code": "42272008ETS00070", "name": "ท่อช่วยหายใจชนิดมี cuff แบบบางสำหรับดูดเสมหะและสิ่งคัดหลั่ง ขนาด 7.0 mm.", "bal": 0, "unit": "EA", "min": 1, "refill": 1, "cat": "catheter", "id": "I060"}, {"code": "42272008ETS00075", "name": "ท่อช่วยหายใจชนิดมี cuff แบบบางสำหรับดูดเสมหะและสิ่งคัดหลั่ง ขนาด 7.5 mm.", "bal": 0, "unit": "EA", "min": 1, "refill": 1, "cat": "catheter", "id": "I061"}, {"code": "42272008ETS00080", "name": "ท่อช่วยหายใจชนิดมี cuff แบบบางสำหรับดูดเสมหะและสิ่งคัดหลั่ง ขนาด 8.0 mm.", "bal": 0, "unit": "EA", "min": 1, "refill": 1, "cat": "catheter", "id": "I062"}, {"code": "423015050006", "name": "ที่หนีบสายยาง", "bal": 5, "unit": "EA", "min": 3, "refill": 3, "cat": "other", "id": "I063"}, {"code": "42311506ELA00002", "name": "ผ้ายืดอีล๊าสติกแบนเดจ 2 นิ้ว", "bal": 18, "unit": "ROLL", "min": 5, "refill": 5, "cat": "dressing", "id": "I064"}, {"code": "42311506ELA00003", "name": "ผ้ายืดอีล๊าสติกแบนเดจ 3 นิ้ว", "bal": 15, "unit": "ROLL", "min": 5, "refill": 5, "cat": "dressing", "id": "I065"}, {"code": "42311506ELA00004", "name": "ผ้ายืดอีล๊าสติกแบนเดจ 4 นิ้ว", "bal": 26, "unit": "ROLL", "min": 6, "refill": 12, "cat": "dressing", "id": "I066"}, {"code": "42311506ELA00006", "name": "ผ้ายืดอีล๊าสติกแบนเดจ 6 นิ้ว", "bal": 20, "unit": "ROLL", "min": 6, "refill": 12, "cat": "dressing", "id": "I067"}, {"code": "42181708RED00000", "name": "แผ่นติดหน้าอกผู้ป่วย(EKG electrode)ชนิดไมโครปอร์", "bal": 200, "unit": "EA", "min": 50, "refill": 50, "cat": "iv", "id": "I068"}, {"code": "6012400200000001", "name": "ฝาปิดจุก Three way Sterile", "bal": 187, "unit": "EA", "min": 50, "refill": 100, "cat": "iv", "id": "I069"}, {"code": "42241515SPL00044", "name": "เฝือก 4 นิ้ว x 3-4 หลา", "bal": 20, "unit": "ROLL", "min": 10, "refill": 10, "cat": "dressing", "id": "I070"}, {"code": "42241515SPL00064", "name": "เฝือก 6 นิ้ว x 3-4 หลา", "bal": 20, "unit": "ROLL", "min": 10, "refill": 10, "cat": "dressing", "id": "I071"}, {"code": "42312403STR00124", "name": "พลาสเตอร์ wound closure strip 1/2 x 4 นิ้ว", "bal": 19, "unit": "แผ่น", "min": 5, "refill": 5, "cat": "dressing", "id": "I072"}, {"code": "42311506BAN00110", "name": "พลาสเตอร์ปิดแผลยางเหนียวขนาด 1 นิ้ว x 10 หลา", "bal": 0, "unit": "ROLL", "min": 5, "refill": 5, "cat": "dressing", "id": "I073"}, {"code": "42311708ADH01210", "name": "พลาสเตอร์ใสชนิดไม่แพ้ขนาด 12 นิ้ว x 10 หลา", "bal": 0, "unit": "ROLL", "min": 2, "refill": 2, "cat": "dressing", "id": "I074"}, {"code": "42141501WEB00044", "name": "สำลีรองเฝือก 4 นิ้ว x 3-4 หลา", "bal": 19, "unit": "ROLL", "min": 3, "refill": 3, "cat": "dressing", "id": "I075"}, {"code": "42141501WEB00064", "name": "สำลีรองเฝือก 6 นิ้ว x 3-4 หลา", "bal": 20, "unit": "ROLL", "min": 3, "refill": 3, "cat": "dressing", "id": "I076"}, {"code": "42141903ENE00000", "name": "หัวสวนอุจจาระ", "bal": 2, "unit": "SET", "min": 1, "refill": 1, "cat": "catheter", "id": "I077"}, {"code": "42182100STE00000", "name": "หูฟัง(Stethoscope Adult)", "bal": 6, "unit": "SET", "min": 4, "refill": 4, "cat": "other", "id": "I078"}];
+const CATS = {
+  catheter:{name:"สายสวน & ท่อ",icon:"🩺"},
+  needle:{name:"เข็ม & Syringe",icon:"💉"},
+  suture:{name:"ไหมเย็บ & ผ่าตัด",icon:"🧵"},
+  dressing:{name:"ผ้าพันแผล & พลาสเตอร์",icon:"🩹"},
+  gloves:{name:"ถุงมือ & PPE",icon:"🧤"},
+  iv:{name:"IV & ตัวต่อสารน้ำ",icon:"🔌"},
+  other:{name:"เบ็ดเตล็ด",icon:"📦"}
+};
+const CATORDER = ["catheter","needle","suture","dressing","gloves","iv","other"];
+const FLUIDS = [
+  {g:"NSS",sizes:["50","100","250","500","1000","irrigate"]},
+  {g:"5DW",sizes:["irrigate","50","100","250","500","1000"]},
+  {g:"5%DN/2",sizes:["500","1000"]},
+  {g:"STW",sizes:["1000"]},
+  {g:"0.45%NaCl",sizes:["1000"]},
+  {g:"RLS",sizes:["1000"]},
+  {g:"Acetar",sizes:["1000"]}
+];
+const FGICON={"NSS":"🧂","5DW":"🍬","5%DN/2":"💧","STW":"🌊","0.45%NaCl":"🧴","RLS":"💧","Acetar":"🧪"};
+const KEY="sicu1_inventory_v1";
+
+let db = load();
+let ui = {view:"stock", cat:"all", search:"", onlyLow:false, sumFilter:"all", shift:"เช้า", editId:null, auditSearch:""};
+let currentUser = null;   // รหัสพนักงานที่ล็อกอินอยู่
+
+/* ---------- AUTH ---------- */
+function hash4(s){let h=5381;for(let i=0;i<s.length;i++)h=((h<<5)+h+s.charCodeAt(i))>>>0;return h.toString(16);}
+function doLogin(){
+  const u=(lgUser.value||"").trim(), p=(lgPass.value||"");
+  if(!/^\d{6}$/.test(u)){lgErr.textContent="รหัสพนักงานต้องเป็นตัวเลข 6 หลัก";return;}
+  if(p.length!==4){lgErr.textContent="รหัสผ่านต้องมี 4 ตัว";return;}
+  db.users=db.users||{};
+  const ph=hash4(p);
+  if(db.users[u]){
+    if(db.users[u].pass!==ph){lgErr.textContent="รหัสผ่านไม่ถูกต้อง";lgPass.value="";return;}
+  }else{
+    db.users[u]={pass:ph, created:new Date().toISOString()};
+    logAction("register","ลงทะเบียนผู้ใช้ใหม่",u);
+  }
+  db.users[u].lastLogin=new Date().toISOString();
+  currentUser=u; save();
+  sessionStorage.setItem("sicu1_user",u);
+  lgErr.textContent=""; lgPass.value=""; lgUser.value="";
+  logAction("login","เข้าสู่ระบบ");
+  loginScreen.classList.add("hide");
+  document.body.style.overflow="";
+  refreshUserBadge(); render(); rolloverCheck();
+}
+function doLogout(){
+  if(!confirm("ออกจากระบบ?"))return;
+  logAction("logout","ออกจากระบบ"); save();
+  currentUser=null; sessionStorage.removeItem("sicu1_user");
+  document.body.style.overflow="hidden";
+  loginScreen.classList.remove("hide");
+  setTimeout(()=>lgUser.focus(),50);
+}
+function refreshUserBadge(){
+  uName.textContent=currentUser||"–";
+  uAv.textContent=currentUser?currentUser.slice(-2):"–";
+}
+function requireUser(){ if(!currentUser){alert("กรุณาเข้าสู่ระบบก่อน");return false;} return true; }
+function stamp(it){ it.by=currentUser; it.at=new Date().toISOString(); }
+
+/* ---------- AUDIT LOG ---------- */
+function logAction(action,detail,forceUser){
+  db.audit=db.audit||[];
+  db.audit.unshift({ts:new Date().toISOString(), uid:forceUser||currentUser||"?", action, detail});
+  if(db.audit.length>2000)db.audit.pop();
+}
+
+function todayStr(){const d=new Date();return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");}
+function thaiDate(iso){const m=["ม.ค.","ก.พ.","มี.ค.","เม.ย.","พ.ค.","มิ.ย.","ก.ค.","ส.ค.","ก.ย.","ต.ค.","พ.ย.","ธ.ค."];const dn=["อาทิตย์","จันทร์","อังคาร","พุธ","พฤหัสบดี","ศุกร์","เสาร์"];const d=new Date(iso+"T00:00");return {full:d.getDate()+" "+m[d.getMonth()]+" "+(d.getFullYear()+543).toString().slice(-2), day:"วัน"+dn[d.getDay()]};}
+
+function load(){
+  let raw=localStorage.getItem(KEY);
+  if(raw){try{let d=JSON.parse(raw);d.users=d.users||{};d.audit=d.audit||[];d.fluids=d.fluids||{};d.history=d.history||[];return d;}catch(e){}}
+  let items=SEED.map(x=>({...x}));
+  return {date:todayStr(), items, fluids:{}, history:[], users:{}, audit:[]};
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(db));}
+
+function statusOf(it){
+  if(it.bal<=0) return "out";
+  if(it.min>0 && it.bal<=it.min) return "low";
+  if(it.min>0 && it.bal<=Math.ceil(it.min*1.3)) return "warn";
+  return "ok";
+}
+const STLABEL={out:"หมด",low:"ต้องเติม",warn:"เฝ้าระวัง",ok:"ปกติ"};
+const STICON={out:"⛔",low:"🔺",warn:"⚠️",ok:"✅"};
+
+/* ---------- RENDER ---------- */
+function render(){
+  const t=thaiDate(db.date);
+  hDate.textContent=t.full; hDay.textContent=t.day+" · "+db.date;
+  renderSummary(); renderAlert(); renderFilters();
+  if(ui.view==="stock") renderStock();
+  if(ui.view==="fluid") renderFluid();
+  if(ui.view==="history") renderHistory();
+  if(ui.view==="audit") renderAudit();
+}
+function counts(){
+  let c={out:0,low:0,warn:0,ok:0,all:db.items.length};
+  db.items.forEach(it=>c[statusOf(it)]++);
+  return c;
+}
+function renderSummary(){
+  const c=counts();
+  summary.innerHTML=`
+   <div class="scard s-all ${ui.sumFilter==='all'?'active':''}" onclick="setSum('all')"><div class="n">${c.all}</div><div class="t">📦 รายการทั้งหมด</div></div>
+   <div class="scard s-out ${ui.sumFilter==='out'?'active':''}" onclick="setSum('out')"><div class="n">${c.out}</div><div class="t">⛔ หมดสต็อก</div></div>
+   <div class="scard s-low ${ui.sumFilter==='low'?'active':''}" onclick="setSum('low')"><div class="n">${c.low+c.warn}</div><div class="t">🔺 ต้องเติม/เฝ้าระวัง</div></div>
+   <div class="scard s-ok ${ui.sumFilter==='ok'?'active':''}" onclick="setSum('ok')"><div class="n">${c.ok}</div><div class="t">✅ ปกติ</div></div>`;
+}
+function setSum(s){ui.sumFilter=ui.sumFilter===s?'all':s;if(ui.view!=='stock'){ui.view='stock';document.querySelectorAll('.tab').forEach(x=>x.classList.toggle('active',x.dataset.view==='stock'));switchView();}render();}
+function renderAlert(){
+  const need=db.items.filter(it=>{const s=statusOf(it);return s==='out'||s==='low';}).sort((a,b)=>a.bal-b.bal);
+  if(!need.length){alertbar.classList.remove('show');return;}
+  alertbar.classList.add('show');
+  alertchips.innerHTML=need.slice(0,40).map(it=>`<span class="achip">${STICON[statusOf(it)]} ${esc(shortName(it.name))} <b>${it.bal}</b>/${it.min} ${it.unit}</span>`).join('');
+}
+function renderFilters(){
+  const per={}; CATORDER.forEach(k=>per[k]=0); db.items.forEach(it=>per[it.cat]=(per[it.cat]||0)+1);
+  let h=`<button class="fchip ${ui.cat==='all'?'active':''}" onclick="setCat('all')">ทั้งหมด <span class="c">${db.items.length}</span></button>`;
+  CATORDER.forEach(k=>{if(per[k])h+=`<button class="fchip ${ui.cat===k?'active':''}" onclick="setCat('${k}')">${CATS[k].icon} ${CATS[k].name} <span class="c">${per[k]}</span></button>`;});
+  catFilters.innerHTML=h;
+}
+function setCat(c){ui.cat=c;render();}
+
+function visibleItems(){
+  let arr=db.items.slice();
+  if(ui.cat!=='all') arr=arr.filter(it=>it.cat===ui.cat);
+  if(ui.sumFilter!=='all') arr=arr.filter(it=>{const s=statusOf(it);return ui.sumFilter==='low'?(s==='low'||s==='warn'):s===ui.sumFilter;});
+  if(ui.onlyLow) arr=arr.filter(it=>{const s=statusOf(it);return s==='out'||s==='low'||s==='warn';});
+  if(ui.search){const q=ui.search.toLowerCase();arr=arr.filter(it=>it.name.toLowerCase().includes(q)||(it.code||'').toLowerCase().includes(q));}
+  return arr;
+}
+function renderStock(){
+  const arr=visibleItems();
+  if(!arr.length){stockList.innerHTML='<div class="empty">ไม่พบรายการที่ตรงเงื่อนไข 🔍</div>';return;}
+  const byCat={}; arr.forEach(it=>{(byCat[it.cat]=byCat[it.cat]||[]).push(it);});
+  let h='';
+  CATORDER.forEach(cat=>{
+    if(!byCat[cat])return;
+    const list=byCat[cat].sort((a,b)=>statRank(a)-statRank(b)||a.name.localeCompare(b.name));
+    h+=`<div class="catsec"><div class="cathead"><span class="ico">${CATS[cat].icon}</span> ${CATS[cat].name} <span class="cnt">${list.length}</span></div><div class="grid">`;
+    list.forEach(it=>h+=itemCard(it));
+    h+='</div></div>';
+  });
+  stockList.innerHTML=h;
+}
+function statRank(it){return {out:0,low:1,warn:2,ok:3}[statusOf(it)];}
+function itemCard(it){
+  const s=statusOf(it);
+  return `<div class="item st-${s}">
+    <div class="it-top">
+      <div><div class="it-name">${esc(it.name)}</div>${it.code?`<div class="it-code">${esc(it.code)}</div>`:''}</div>
+      <span class="badge b-${s}">${STICON[s]} ${STLABEL[s]}</span>
+    </div>
+    <div class="it-mid">
+      <div class="bal">
+        <input class="num" type="number" value="${it.bal}" onchange="setBal('${it.id}',this.value)" onfocus="this.select()">
+        <span class="unit">${esc(it.unit||'')}</span>
+      </div>
+      <div class="stepper">
+        <button class="step minus" onclick="adj('${it.id}',-1)" title="จ่ายออก 1">−</button>
+        <button class="step plus" onclick="adj('${it.id}',1)" title="รับเข้า 1">+</button>
+      </div>
+    </div>
+    <div class="it-foot">
+      <div class="thr">แตะ <b>${it.min}</b> · เติม <b>${it.refill}</b></div>
+      <div><button class="mini" onclick="quickRefill('${it.id}')">＋เติม ${it.refill}</button> &nbsp;<button class="mini" onclick="openEdit('${it.id}')">แก้ไข</button></div>
+    </div>
+    ${it.by?`<div class="it-by">🧾 ล่าสุดโดย <b style="color:var(--teal-d)">${esc(it.by)}</b> · ${fmtTime(it.at)}</div>`:''}
+  </div>`;
+}
+/* ---------- ACTIONS ---------- */
+function adj(id,d){if(!requireUser())return;const it=db.items.find(x=>x.id===id);if(!it)return;const b=it.bal||0;it.bal=Math.max(0,b+d);stamp(it);logAction(d<0?"dispense":"receive",(d<0?"จ่ายออก":"รับเข้า")+" "+shortName(it.name)+" ("+b+"→"+it.bal+" "+it.unit+")");save();render();}
+function setBal(id,v){if(!requireUser())return;const it=db.items.find(x=>x.id===id);if(!it)return;const b=it.bal||0;it.bal=Math.max(0,parseInt(v)||0);if(it.bal===b)return;stamp(it);logAction("setbal","แก้ยอด "+shortName(it.name)+" ("+b+"→"+it.bal+" "+it.unit+")");save();render();}
+function quickRefill(id){if(!requireUser())return;const it=db.items.find(x=>x.id===id);if(!it)return;const b=it.bal||0;it.bal=b+(it.refill||0);stamp(it);logAction("refill","เติมของ "+shortName(it.name)+" +"+(it.refill||0)+" ("+b+"→"+it.bal+" "+it.unit+")");save();render();}
+
+/* ---------- FLUID ---------- */
+function fkey(g,s){return g+"|"+s;}
+function renderFluid(){
+  const day=db.fluids||{};
+  let grand=0; Object.keys(day).forEach(sh=>Object.values(day[sh]||{}).forEach(v=>grand+=v));
+  fluidTotal.textContent=grand;
+  const cur=day[ui.shift]||{};
+  let h='';
+  FLUIDS.forEach(f=>{
+    let gt=0; f.sizes.forEach(s=>{Object.keys(day).forEach(sh=>{gt+=(day[sh]&&day[sh][fkey(f.g,s)])||0;});});
+    h+=`<div class="fgroup"><h4>${FGICON[f.g]||'💧'} ${f.g} <span class="gt">รวมวันนี้ ${gt}</span></h4><div class="fsizes">`;
+    f.sizes.forEach(s=>{
+      const v=cur[fkey(f.g,s)]||0;
+      h+=`<div class="fsize ${v>0?'has':''}"><div class="lbl">${s}${/^\d+$/.test(s)?' ml':''}</div><div class="row"><button class="fstep m" onclick="fadj('${f.g}','${s}',-1)">−</button><span class="cnt">${v}</span><button class="fstep p" onclick="fadj('${f.g}','${s}',1)">+</button></div></div>`;
+    });
+    h+='</div></div>';
+  });
+  fluidList.innerHTML=h;
+}
+function fadj(g,s,d){
+  if(!requireUser())return;
+  if(!db.fluids)db.fluids={};
+  if(!db.fluids[ui.shift])db.fluids[ui.shift]={};
+  const k=fkey(g,s);
+  const v0=db.fluids[ui.shift][k]||0;
+  db.fluids[ui.shift][k]=Math.max(0,v0+d);
+  if(db.fluids[ui.shift][k]!==v0) logAction("fluid","สารน้ำ "+g+" "+s+" เวร"+ui.shift+" ("+v0+"→"+db.fluids[ui.shift][k]+")");
+  save();renderFluid();
+}
+function resetFluidToday(){if(!requireUser())return;if(confirm('ล้างยอดสารน้ำของวันนี้ทั้งหมด (ทุกเวร)?')){db.fluids={};logAction("fluidreset","ล้างยอดสารน้ำทั้งวัน");save();renderFluid();}}
+
+/* ---------- CARRY OVER ---------- */
+function carryOver(){
+  if(!requireUser())return;
+  const c=counts();
+  let fl=0; Object.keys(db.fluids||{}).forEach(sh=>Object.values(db.fluids[sh]||{}).forEach(v=>fl+=v));
+  if(!confirm(`ปิดยอดวันที่ ${db.date}\n\n• บันทึกสรุปวันนี้ลงประวัติ\n• ยกยอดคงเหลือทั้งหมดไปวันใหม่\n• ล้างยอดสารน้ำเพื่อเริ่มนับใหม่\n\nยืนยัน?`))return;
+  db.history.unshift({date:db.date, all:c.all, out:c.out, low:c.low+c.warn, ok:c.ok, fluid:fl, by:currentUser,
+     lowItems:db.items.filter(it=>['out','low'].includes(statusOf(it))).map(it=>({n:shortName(it.name),b:it.bal,m:it.min,u:it.unit})),
+     snapshot:db.items.map(it=>({id:it.id,bal:it.bal}))});
+  if(db.history.length>120)db.history.pop();
+  logAction("close","ปิดยอดวันที่ "+db.date+" (หมด "+c.out+", ต้องเติม "+(c.low+c.warn)+", สารน้ำ "+fl+")");
+  db.date=todayStr();
+  db.fluids={};
+  save();render();
+  alert('✅ ปิดยอดเรียบร้อย — ยอดคงเหลือถูกยกไปวันใหม่ ('+db.date+') และเริ่มนับสารน้ำใหม่แล้ว');
+}
+function renderHistory(){
+  if(!db.history.length){historyList.innerHTML='<div class="empty">ยังไม่มีประวัติ — กด “ปิดยอด → ขึ้นวันใหม่” เมื่อจบวันเพื่อบันทึกสรุป 📌</div>';return;}
+  historyList.innerHTML=db.history.map(h=>{
+    const t=thaiDate(h.date);
+    const chips=(h.lowItems||[]).slice(0,30).map(x=>`<span class="achip">${esc(x.n)} <b>${x.b}</b>/${x.m}</span>`).join('');
+    return `<div class="hcard"><div class="hd"><span>📅 ${t.full} (${t.day})</span><span style="color:var(--muted);font-weight:400">${h.date}</span></div>
+      <div class="hstat"><span>ทั้งหมด <b>${h.all}</b></span><span style="color:var(--out)">หมด <b>${h.out}</b></span><span style="color:var(--low)">ต้องเติม <b>${h.low}</b></span><span style="color:var(--ok)">ปกติ <b>${h.ok}</b></span><span style="color:var(--teal-d)">💧 สารน้ำ <b>${h.fluid}</b></span></div>
+      ${chips?`<div class="chips" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">${chips}</div>`:''}</div>`;
+  }).join('');
+}
+
+/* ---------- MODAL ---------- */
+function openAdd(){ui.editId=null;mTitle.textContent="➕ เพิ่มรายการใหม่";mName.value="";mUnit.value="EA";mBal.value=0;mMin.value=0;mRef.value=0;mCode.value="";
+  mCat.innerHTML=CATORDER.map(k=>`<option value="${k}">${CATS[k].icon} ${CATS[k].name}</option>`).join('');
+  mCat.value=ui.cat!=='all'?ui.cat:'other';
+  mDelete.classList.add('hide'); modal.classList.add('show');}
+function openEdit(id){const it=db.items.find(x=>x.id===id);if(!it)return;ui.editId=id;mTitle.textContent="✏️ แก้ไขรายการ";
+  mName.value=it.name;mUnit.value=it.unit||'';mBal.value=it.bal;mMin.value=it.min;mRef.value=it.refill;mCode.value=it.code||'';
+  mCat.innerHTML=CATORDER.map(k=>`<option value="${k}">${CATS[k].icon} ${CATS[k].name}</option>`).join('');mCat.value=it.cat;
+  mDelete.classList.remove('hide'); modal.classList.add('show');}
+function closeModal(){modal.classList.remove('show');}
+function saveItem(){
+  if(!requireUser())return;
+  const name=mName.value.trim(); if(!name){alert('กรุณาใส่ชื่อรายการ');return;}
+  const o={name,cat:mCat.value,unit:mUnit.value.trim(),bal:parseInt(mBal.value)||0,min:parseInt(mMin.value)||0,refill:parseInt(mRef.value)||0,code:mCode.value.trim()};
+  if(ui.editId){const it=db.items.find(x=>x.id===ui.editId);Object.assign(it,o);stamp(it);logAction("edit","แก้ไขรายการ "+shortName(name));}
+  else{o.id="I"+Date.now();stamp(o);db.items.push(o);logAction("add","เพิ่มรายการใหม่ "+shortName(name)+" (เริ่ม "+o.bal+" "+o.unit+")");}
+  save();closeModal();render();
+}
+function deleteItem(){if(!requireUser())return;if(!ui.editId)return;if(confirm('ลบรายการนี้ออกจากระบบ?')){const it=db.items.find(x=>x.id===ui.editId);logAction("delete","ลบรายการ "+(it?shortName(it.name):ui.editId));db.items=db.items.filter(x=>x.id!==ui.editId);save();closeModal();render();}}
+
+/* ---------- BACKUP ---------- */
+function backup(){
+  const blob=new Blob([JSON.stringify(db,null,2)],{type:"application/json"});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download="SICU1_stock_"+db.date+".json";a.click();
+}
+function doPrint(){window.print();}
+
+/* ---------- AUDIT VIEW ---------- */
+const ACTMETA={dispense:{i:"➖",c:""},receive:{i:"➕",c:"act-add"},refill:{i:"📦",c:"act-add"},setbal:{i:"✏️",c:""},add:{i:"🆕",c:"act-add"},edit:{i:"✏️",c:""},delete:{i:"🗑️",c:"act-del"},fluid:{i:"💧",c:""},fluidreset:{i:"♻️",c:""},close:{i:"🌙",c:"act-close"},login:{i:"🔑",c:""},logout:{i:"🚪",c:""},register:{i:"👤",c:"act-add"}};
+function renderAudit(){
+  let arr=(db.audit||[]);
+  const q=ui.auditSearch.toLowerCase();
+  if(q)arr=arr.filter(a=>(a.uid||'').includes(q)||(a.detail||'').toLowerCase().includes(q));
+  if(!arr.length){auditList.innerHTML='<div class="empty">ยังไม่มีบันทึกการใช้งาน 🧾</div>';return;}
+  auditList.innerHTML=arr.slice(0,500).map(a=>{
+    const m=ACTMETA[a.action]||{i:"•",c:""};
+    return `<div class="audit-row ${m.c}"><span class="a-ico">${m.i}</span><span class="a-uid">${esc(a.uid)}</span><span class="a-det">${esc(a.detail||'')}</span><span class="a-time">${fmtDateTime(a.ts)}</span></div>`;
+  }).join('');
+}
+function exportAudit(){
+  const rows=[["วันเวลา","รหัสพนักงาน","การกระทำ","รายละเอียด"]];
+  (db.audit||[]).forEach(a=>rows.push([fmtDateTime(a.ts),a.uid,a.action,(a.detail||'').replace(/"/g,'""')]));
+  const csv="﻿"+rows.map(r=>r.map(c=>`"${c}"`).join(",")).join("\r\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download="SICU1_log_"+todayStr()+".csv";a.click();
+}
+
+/* ---------- UTIL ---------- */
+function esc(s){return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));}
+function shortName(n){return n.length>34?n.slice(0,32)+'…':n;}
+function fmtTime(iso){if(!iso)return'';const d=new Date(iso);return String(d.getHours()).padStart(2,'0')+":"+String(d.getMinutes()).padStart(2,'0')+" น.";}
+function fmtDateTime(iso){if(!iso)return'';const d=new Date(iso);return d.getDate()+"/"+(d.getMonth()+1)+"/"+((d.getFullYear()+543)%100)+" "+String(d.getHours()).padStart(2,'0')+":"+String(d.getMinutes()).padStart(2,'0');}
+function switchView(){
+  ['stock','fluid','history','audit'].forEach(v=>document.getElementById('view-'+v).classList.toggle('hide',v!==ui.view));
+}
+
+/* ---------- EVENTS ---------- */
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));t.classList.add('active');ui.view=t.dataset.view;switchView();render();});
+document.querySelectorAll('.fluid-shift .sh').forEach(b=>b.onclick=()=>{document.querySelectorAll('.fluid-shift .sh').forEach(x=>x.classList.remove('active'));b.classList.add('active');ui.shift=b.dataset.shift;renderFluid();});
+searchBox.oninput=e=>{ui.search=e.target.value;renderStock();};
+onlyLow.onchange=e=>{ui.onlyLow=e.target.checked;renderStock();};
+auditSearch.oninput=e=>{ui.auditSearch=e.target.value;renderAudit();};
+modal.onclick=e=>{if(e.target===modal)closeModal();};
+lgUser.addEventListener('keydown',e=>{if(e.key==='Enter')lgPass.focus();});
+lgPass.addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+lgUser.addEventListener('input',()=>{lgUser.value=lgUser.value.replace(/\D/g,'').slice(0,6);});
+
+/* ---------- STARTUP ---------- */
+function rolloverCheck(){
+  if(db.date!==todayStr()){
+    setTimeout(()=>{if(confirm('วันที่ในระบบคือ '+db.date+' แต่วันนี้คือ '+todayStr()+'\n\nต้องการ “ปิดยอด → ขึ้นวันใหม่” เลยไหม?\n(ยอดคงเหลือจะถูกยกไปวันใหม่)'))carryOver();},500);
+  }
+}
+(function init(){
+  const su=sessionStorage.getItem("sicu1_user");
+  if(su && db.users && db.users[su]){       // มี session อยู่แล้วในแท็บนี้
+    currentUser=su; loginScreen.classList.add("hide"); document.body.style.overflow="";
+    refreshUserBadge(); render(); rolloverCheck();
+  }else{
+    document.body.style.overflow="hidden";
+    setTimeout(()=>lgUser.focus(),100);
+  }
+})();
+</script>
+</body>
+</html>
